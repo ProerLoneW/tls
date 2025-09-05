@@ -1,6 +1,27 @@
+# tls_common/Cargo.toml
 [package]
 name = "tls_common"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "cert-generator"
+path = "src/bin/cert_generator.rs"
+
 [dependencies]
+# 库和二进制文件都需要的依赖
+rcgen = "0.13.1"
+rustls-pemfile = "2.1.0"
+tokio-rustls = "0.26.0"
+tokio = { version = "1", features = ["net"] }
+rustls = "0.23.0"
+
+# 仅 cert-generator 二进制文件需要的依赖
+clap = { version = "4.5.4", features = ["derive"], optional = true }
+
+x509-parser = "0.16.0" 
+
+[features]
+default = []
+# 创建一个 feature 来启用 clap，这样 server 和 client 就不需要间接依赖它
+cert-gen = ["clap"]

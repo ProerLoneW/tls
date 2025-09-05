@@ -1,6 +1,14 @@
+# server/Cargo.toml
 [package]
 name = "server"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# 依赖工作区中的 tls_common
+tls_common = { path = "../tls_common" }
+
+tokio = { version = "1", features = ["full"] }
+tokio-rustls = "0.26.0"
+rustls = { version = "0.23.0", features = ["ring"] }
+clap = { version = "4.5.4", features = ["derive"] }
