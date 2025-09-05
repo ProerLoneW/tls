@@ -21,7 +21,14 @@ clap = { version = "4.5.4", features = ["derive"], optional = true }
 
 x509-parser = "0.16.0" 
 
+hex = "0.4.3"
+rsa = "0.10.0-rc.6"
+
 [features]
 default = []
 # 创建一个 feature 来启用 clap，这样 server 和 client 就不需要间接依赖它
 cert-gen = ["clap"]
+
+# 强制降级 base16ct
+[patch.crates-io]
+base16ct = { version = "0.2.0" }
