@@ -30,20 +30,10 @@ pub fn display_server_tls_details(stream: &ServerTlsStream<TcpStream>) {
     if let Some(suite) = session.negotiated_cipher_suite() {
         println!("Cipher Suite: {:?}", suite.suite());
     }
-    //session.dangerous_extract_secrets();
     if let Some(certs) = session.peer_certificates() {
         if let Some(cert_der) = certs.first() {
-            // --- 新增解析逻辑 ---
-            match parse_x509_certificate(cert_der.as_ref()) {
-                Ok((_, parsed_cert)) => {
-                    println!("ttt{:?}", parsed_cert);
-                    println!("Client Certificate Subject: {:?}", parsed_cert.subject().as_raw());
-                }
-                Err(_) => {
-                    println!("Could not parse client certificate.");
-                }
-            }
-            // --- 结束新增 ---
+            // --- 打印客户端证书 ---
+            print_certificate_details(cert_der);
         }
     }
     println!("--------------------------------------\n");
@@ -61,9 +51,8 @@ pub fn display_client_tls_details(stream: &ClientTlsStream<TcpStream>) {
     }
     if let Some(certs) = session.peer_certificates() {
         if let Some(cert_der) = certs.first() {
-            // --- 新增解析逻辑 ---
+            // --- 打印服务器证书 ---
             print_certificate_details(cert_der);
-            // --- 结束新增 ---
         }
     }
     println!("--------------------------------------\n");
