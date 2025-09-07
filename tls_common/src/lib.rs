@@ -69,7 +69,6 @@ pub fn display_client_tls_details(stream: &ClientTlsStream<TcpStream>) {
     println!("--------------------------------------\n");
 }
 
-use x509_parser::prelude::*;
 use x509_parser::der_parser::oid::Oid;
 use x509_parser::der_parser::asn1_rs::{Any, Tag};
 

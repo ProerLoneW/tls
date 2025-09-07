@@ -8,11 +8,12 @@ use std::io::{self, BufReader, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tls_common::display_client_tls_details;
+use tls_common::{display_client_tls_details, load_certs, load_private_key};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::rustls::{self, ClientConfig, RootCertStore};
 use tokio_rustls::TlsConnector;
+use rustls_pemfile;
 
 #[derive(Parser)]
 struct Args {
@@ -22,15 +23,26 @@ struct Args {
     hostname: String,
     #[clap(long, value_parser = ["1.2", "1.3"], default_value = "1.3")]
     tls_version: String,
-    /// Path to the server's self-signed certificate to trust.
-    #[clap(long, default_value = "cert.pem")]
+    #[clap(long, default_value = "ca.crt", help = "用于验证服务器的 CA 根证书路径")]
     cafile: PathBuf,
+    #[clap(long, default_value = "client/client.crt", help = "客户端证书路径")]
+    cert: PathBuf,
+    #[clap(long, default_value = "client/client.key", help = "客户端私钥路径")]
+    key: PathBuf,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    run_client(args.addr, &args.hostname, &args.tls_version, args.cafile).await
+    run_client(
+        args.addr,
+        &args.hostname,
+        &args.tls_version,
+        args.cafile,
+        args.cert,
+        args.key,
+    )
+    .await
 }
 
 async fn run_client(
@@ -38,14 +50,12 @@ async fn run_client(
     hostname: &str,
     tls_version: &str,
     cafile: PathBuf,
+    cert_path: PathBuf,
+    key_path: PathBuf,
 ) -> Result<(), Box<dyn Error>> {
-    // 1. 创建一个新的、空的根证书存储
+    // 根证书存储
     let mut root_store = RootCertStore::empty();
-    
-    // 2. 打开我们自己的服务器证书文件 (cert.pem)
     let mut pem = BufReader::new(File::open(cafile)?);
-    
-    // 3. 读取证书并将其添加为我们唯一信任的根证书
     for cert in rustls_pemfile::certs(&mut pem) {
         root_store.add(cert?)?;
     }
@@ -56,12 +66,21 @@ async fn run_client(
         &[&rustls::version::TLS13]
     };
 
-    // 4. 使用这个只信任我们自己证书的 root_store 来创建配置
-    //    我们不再需要 DangerousServerCertVerifier 了
+    // 加载客户端自己的证书和私钥
+    let client_certs = load_certs(&cert_path)?;
+    let client_key = load_private_key(&key_path)?;
+
+    // 不发送客户端证书
+    // let config = ClientConfig::builder_with_provider(rustls::crypto::ring::default_provider().into())
+    //     .with_protocol_versions(versions)?
+    //     .with_root_certificates(root_store)
+    //     .with_no_client_auth();
+
+    // 发送客户端证书 使用客户端证书和私钥构建 ClientConfig
     let config = ClientConfig::builder_with_provider(rustls::crypto::ring::default_provider().into())
         .with_protocol_versions(versions)?
         .with_root_certificates(root_store)
-        .with_no_client_auth();
+        .with_client_auth_cert(client_certs, client_key.into())?;
 
     let connector = TlsConnector::from(Arc::new(config));
     let stream = TcpStream::connect(addr).await?;
