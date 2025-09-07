@@ -1223,13 +1223,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "test_ca"
-version = "0.1.0"
-dependencies = [
- "openssl",
-]
-
-[[package]]
 name = "thiserror"
 version = "2.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
