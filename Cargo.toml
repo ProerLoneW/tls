@@ -7,5 +7,5 @@ edition = "2021"
 
 [workspace]
 members = [
-    "client", "server", "test_ca", "tls_common"
+    "client", "server", "tls_common"
 ]
