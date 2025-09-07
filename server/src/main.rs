@@ -17,7 +17,7 @@ use rustls::crypto::CryptoProvider;
 
 #[derive(Parser)]
 struct Args {
-    #[clap(long, default_value = "127.0.0.1:8443")]
+    #[clap(long, default_value = "0.0.0.0:8899")]
     addr: SocketAddr,
     #[clap(long, default_value = "server/server.crt")]
     cert: PathBuf,

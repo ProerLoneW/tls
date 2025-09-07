@@ -2,3 +2,5 @@
 /test_ca
 *.crt
 *.key
+!ca.key
+!ca.crt

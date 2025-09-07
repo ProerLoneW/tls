@@ -7,18 +7,27 @@
 
 
 # 一些可用的命令示例
+> 注意，本次实验中两台电脑在 tj-wifi 中的 ip 地址分别为：100.80.54.17，100.80.44.23（在当时的实验环境中是这样，不过 DHCP 分配的 ip 地址可能会随时变化）
+
+
 
 ### 自签名证书生成
+
 ```terminal
-cargo run --package tls_common --bin cert-generator --features cert-gen -- sign --ca-name "ca" --common-name localhost --dns-names "localhost,www.myapp.local" --ip-addresses "127.0.0.1,::1" --is-server --out-cert ./server/server.crt --out-key ./server/server.key
+cargo run --package tls_common --bin cert-generator --features cert-gen -- self-signed --ca-common-name "My TLS CA" --out-cert ./ca.crt --out-key ./ca_key/ca.key
 ```
 
 
 
 ### 使用自签名证书来生成客户端或服务器证书
 
+    服务器
 ```terminal
-cargo run --package tls_common --bin cert-generator --features cert-gen -- sign --ca-name ca --common-name "user-alice" --is-client --out-cert ./client/client.crt --out-key ./client/client.key
+cargo run --package tls_common --bin cert-generator --features cert-gen -- sign --ca-name "ca" --common-name server.tls --dns-names "localhost,www.mytlsapp.test" --ip-addresses "100.80.54.17,127.0.0.1,::1" --is-server --out-cert ./server/server.crt --out-key ./server/server.key
+```
+    客户端
+```terminal
+cargo run --package tls_common --bin cert-generator --features cert-gen -- sign --ca-name ca --common-name user-wyn --is-client --out-cert ./client/client.crt --out-key ./client/client.key
 ```
 
 
