@@ -23,7 +23,7 @@ cargo run --package tls_common --bin cert-generator --features cert-gen -- self-
 
     服务器
 ```terminal
-cargo run --package tls_common --bin cert-generator --features cert-gen -- sign --ca-name "ca" --common-name server.tls --dns-names "localhost,www.mytlsapp.test" --ip-addresses "100.80.54.17,127.0.0.1,::1" --is-server --out-cert ./server/server.crt --out-key ./server/server.key
+cargo run --package tls_common --bin cert-generator --features cert-gen -- sign --ca-name "ca" --common-name server.tls --dns-names "localhost,www.mytlsapp.test" --ip-addresses "172.20.10.7,100.80.54.17,127.0.0.1,::1" --is-server --out-cert ./server/server.crt --out-key ./server/server.key
 ```
     客户端
 ```terminal
