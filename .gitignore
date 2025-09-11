@@ -4,3 +4,4 @@
 *.key
 !ca.key
 !ca.crt
+.DS_Store

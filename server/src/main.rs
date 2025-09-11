@@ -14,6 +14,8 @@ use tokio_rustls::rustls::server::WebPkiClientVerifier;
 use std::io::BufReader;
 use rustls_pemfile;
 use rustls::crypto::CryptoProvider;
+use tls_common::{CollectKeyLog, SniffState, SniffingStream}; // 新增
+use tls_common::probe; // 新增
 
 #[derive(Parser)]
 struct Args {
@@ -81,24 +83,78 @@ async fn run_server(
     //     .with_single_cert(certs, key.into())?;
 
     // 需要证书认证 题目要求
-    let config = ServerConfig::builder_with_provider(rustls::crypto::ring::default_provider().into())
+    let mut config = ServerConfig::builder_with_provider(rustls::crypto::ring::default_provider().into())
         .with_protocol_versions(versions)?
         .with_client_cert_verifier(client_verifier) // <-- 从 with_no_client_auth() 改为这个
         .with_single_cert(certs, key.into())?;
+
+    // ★ 挂 KeyLog（Arc 要传入子任务里）
+    let server_keylog = Arc::new(CollectKeyLog::default());
+    config.key_log = server_keylog.clone();
 
     let acceptor = TlsAcceptor::from(Arc::new(config));
     let listener = TcpListener::bind(addr).await?;
     println!("[Server] Listening on {} with TLS v{}", addr, tls_version);
 
     loop {
-        let (stream, peer_addr) = listener.accept().await?;
+        let (tcp, peer_addr) = listener.accept().await?;
         let acceptor = acceptor.clone();
+        let server_keylog = server_keylog.clone();
+
+        // tokio::spawn(async move {
+        //     let stream = acceptor.accept(stream).await.expect("accept error");
+        //     if let Err(e) = handle_connection(stream).await {
+        //         eprintln!("[Server] Error handling connection from {}: {}", peer_addr, e);
+        //     }
+        // });
+
         tokio::spawn(async move {
-            let stream = acceptor.accept(stream).await.expect("accept error");
-            if let Err(e) = handle_connection(stream).await {
-                eprintln!("[Server] Error handling connection from {}: {}", peer_addr, e);
+            // ★ 包一层 tee，抓原始 TLS 字节
+            let sniff = Arc::new(SniffState::default());
+            let tee   = SniffingStream::new(tcp, sniff.clone());
+
+            let mut tls = match acceptor.accept(tee).await {
+                Ok(s) => s,
+                Err(e) => { eprintln!("[Server] accept error from {}: {}", peer_addr, e); return; }
+            };
+
+            // 可选：打印 rustls 已暴露的协商信息
+            // tls_common::display_server_tls_details(&tls);
+
+            // ★ 抽取最终协商参数（解析 ServerHello + 解密后续握手）
+            //    服务端视角：rx=客户端->服务端原始字节, tx=服务端->客户端原始字节
+            let rx_bytes = sniff.snapshot_rx();
+            let tx_bytes = sniff.snapshot_tx();
+
+            match probe::extract_params(&rx_bytes, &tx_bytes, &server_keylog.lines()) {
+                Ok(p) => {
+                    println!("\n===== [Server Probe] TLS 1.3 negotiated parameters =====");
+                    println!("Cipher Suite      : {}", p.cipher_suite);
+                    println!("Named Group(curve): {}", p.named_group);
+                    println!("Signature Alg     : {}", p.signature_algorithm.as_deref().unwrap_or("unknown"));
+                    if let Some(ref der) = p.certificate_der {
+                        println!("Server Certificate: {} bytes (DER)", der.len());
+                    }
+                    if let Some(ref oid) = p.ec_curve_oid {
+                        println!("Cert EC Curve OID : {}", oid);
+                    }
+                    if let Some(ref pk) = p.ec_pubkey_uncompressed_hex {
+                        println!("EC Public Key(04|X|Y): {}", &pk[..pk.len().min(120)]);
+                    }
+                    println!("=========================================================\n");
+                }
+                Err(e) => eprintln!("[Server Probe] extract failed: {:#}", e),
+            }
+
+            // 进入 echo 循环
+            let mut buf = vec![0u8; 1024];
+            loop {
+                let n = match tls.read(&mut buf).await { Ok(0)=>break, Ok(n)=>n, Err(e)=>{eprintln!("[Server] read error: {}", e); break;} };
+                print!("[Server] Received: {}", String::from_utf8_lossy(&buf[..n]));
+                if let Err(e) = tls.write_all(&buf[..n]).await { eprintln!("[Server] write error: {}", e); break; }
             }
         });
+
     }
 }
 

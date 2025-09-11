@@ -17,7 +17,8 @@ use rustls_pemfile;
 
 #[derive(Parser)]
 struct Args {
-    #[clap(long, default_value = "172.20.10.6:8899")]
+    #[clap(long, default_value = "127.0.0.1:8899")]
+    // #[clap(long, default_value = "172.20.10.6:8899")]
     addr: SocketAddr,
     #[clap(long, default_value = "localhost")]
     hostname: String,
