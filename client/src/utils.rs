@@ -1,51 +1,3 @@
-// client/src/main.rs
-
-use clap::Parser;
-use rustls::{pki_types::ServerName};
-use std::error::Error;
-use std::fs::File;
-use std::io::{self, BufReader, Write};
-use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tls_common::{display_client_tls_details, load_certs, load_private_key};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
-use tokio_rustls::rustls::{self, ClientConfig, RootCertStore};
-use tokio_rustls::TlsConnector;
-use rustls_pemfile;
-
-#[derive(Parser)]
-struct Args {
-    #[clap(long, default_value = "127.0.0.1:8899")]
-    // #[clap(long, default_value = "172.20.10.6:8899")]
-    addr: SocketAddr,
-    #[clap(long, default_value = "localhost")]
-    hostname: String,
-    #[clap(long, value_parser = ["1.2", "1.3"], default_value = "1.3")]
-    tls_version: String,
-    #[clap(long, default_value = "ca.crt", help = "用于验证服务器的 CA 根证书路径")]
-    cafile: PathBuf,
-    #[clap(long, default_value = "client/client.crt", help = "客户端证书路径")]
-    cert: PathBuf,
-    #[clap(long, default_value = "client/client.key", help = "客户端私钥路径")]
-    key: PathBuf,
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let args = Args::parse();
-    run_client_recv(
-        args.addr,
-        &args.hostname,
-        &args.tls_version,
-        args.cafile,
-        args.cert,
-        args.key,
-    )
-    .await
-}
-
 async fn run_client_recv(
     addr: SocketAddr,
     hostname: &str,
@@ -54,6 +6,16 @@ async fn run_client_recv(
     cert_path: PathBuf,
     key_path: PathBuf,
 ) -> Result<(), Box<dyn Error>> {
+    /*
+    run_client(
+        args.addr,
+        &args.hostname,
+        &args.tls_version,
+        args.cafile,
+        args.cert,
+        args.key,
+    )
+     */
     // 根证书存储
     let mut root_store = RootCertStore::empty();
     let mut pem = BufReader::new(File::open(cafile)?);
