@@ -4,12 +4,12 @@ use clap::Parser;
 use rustls::{pki_types::ServerName};
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufReader, Write};
+use std::io::{self, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tls_common::{display_client_tls_details, load_certs, load_private_key};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as TokioBufReader};
 use tokio::net::TcpStream;
 use tokio_rustls::rustls::{self, ClientConfig, RootCertStore};
 use tokio_rustls::TlsConnector;
@@ -56,7 +56,7 @@ async fn run_client_recv(
 ) -> Result<(), Box<dyn Error>> {
     // 根证书存储
     let mut root_store = RootCertStore::empty();
-    let mut pem = BufReader::new(File::open(cafile)?);
+    let mut pem = std::io::BufReader::new(File::open(cafile)?);
     for cert in rustls_pemfile::certs(&mut pem) {
         root_store.add(cert?)?;
     }
@@ -95,22 +95,27 @@ async fn run_client_recv(
     println!("[Client] TLS connection established with {}", addr);
     display_client_tls_details(&stream);
 
-    loop {
-        print!("[Client] Enter message (or Ctrl+D to exit): ");
-        io::stdout().flush()?;
-        let mut line = String::new();
-        if io::stdin().read_line(&mut line)? == 0 {
-            println!("\n[Client] Disconnecting.");
-            break;
+    // 拆分读/写两半
+    let (rd, mut wr) = tokio::io::split(stream);
+
+    // 任务1：从 stdin 读一行就发到服务端
+    let t_send = tokio::spawn(async move {
+        let mut in_lines = TokioBufReader::new(tokio::io::stdin()).lines();
+        while let Ok(Some(mut line)) = in_lines.next_line().await {
+            if !line.ends_with('\n') { line.push('\n'); } // 以 '\n' 作为消息分隔
+            if wr.write_all(line.as_bytes()).await.is_err() { break; }
         }
-        stream.write_all(line.as_bytes()).await?;
-        let mut res = vec![0; 1024];
-        let n = stream.read(&mut res).await?;
-        if n == 0 {
-            println!("\n[Server] Closed connection.");
-            break;
+    });
+
+    // 任务2：持续读取服务器的每一行回包并打印
+    let t_recv = tokio::spawn(async move {
+        let mut sock_lines = TokioBufReader::new(rd).lines();
+        while let Ok(Some(line)) = sock_lines.next_line().await {
+            println!("[Client] Received: {line}");
         }
-        print!("[Client] Received: {}", String::from_utf8_lossy(&res[..n]));
-    }
+    });
+
+    let _ = tokio::join!(t_send, t_recv);
+
     Ok(())
 }
