@@ -44,3 +44,21 @@ openssl verify -CAfile ./ca.crt ./ca.crt # 验证ca自签名证书
 openssl verify -CAfile ./ca.crt ./server/server.crt # 用自签名ca验证服务器证书
 ```
 
+
+
+### 项目启动
+
+​	还有很多参数，默认值可以在代码中调整。
+
+```terminal
+cargo run --package server -- --tls-version 1.3 # 使用tls1.3启动服务端
+
+cargo run --package client -- --tls-version 1.3 # 使用tls1.3启动客户端
+```
+
+​	服务端在启动后会有web界面：
+
+![image1](image/image1.png)
+
+![image1](image/image2.png)
+

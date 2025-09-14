@@ -32,7 +32,7 @@ fn cipher_name(id: u16) -> Option<(&'static str, AeadKind, HashKind, usize)> {
 }
 fn group_name(id: u16) -> &'static str {
     match id { 0x001D=>"x25519",0x0017=>"secp256r1",0x0018=>"secp384r1",0x0019=>"secp521r1",
-               0x0101=>"ffdhe2048",0x0102=>"ffdhe3072",0x0103=>"ffdhe4096", _=>"unknown" }
+                0x0101=>"ffdhe2048",0x0102=>"ffdhe3072",0x0103=>"ffdhe4096", _=>"unknown" }
 }
 fn sigscheme_name(id: u16) -> &'static str {
     match id {
